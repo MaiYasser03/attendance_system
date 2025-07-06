@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.csv
+*.jpg
+*.png
+data/Dataset/*/*.jiff
+data/Dataset/*/*.json
+emotion_analytics.png
+attendance.csv
+attendance_backup.csv
+attendance_temp.csv

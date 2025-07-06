@@ -1,0 +1,13 @@
+opencv-python
+mediapipe
+numpy
+pandas
+pyttsx3
+screen_brightness_control
+pycaw
+comtypes
+easyocr
+deepface
+matplotlib
+tensorflow==2.12
+keras==2.12
