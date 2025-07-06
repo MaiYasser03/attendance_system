@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Attendance System with Face Recognition
 
 A comprehensive system for:
@@ -32,3 +33,7 @@ A comprehensive system for:
 - **E**: Generate emotion analytics
 - **P**: Toggle processing pipeline
 - **ESC**: Quit
+=======
+# attendance_system
+An integrated AI-based system for real-time - Face recognition and authentication - Emotion detection - Hand gesture control - ID card OCR - Attendance logging
+>>>>>>> b92b3f387a15f7b0ad4118da20ea6e73b7d8b526
