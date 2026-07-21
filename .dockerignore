@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+*.log
+emotion_analytics.png
+temp_face.jpg
+attendance.csv
+attendance_backup.csv
+.env
+.venv/
+venv/
+agent-transcripts/
+terminals/

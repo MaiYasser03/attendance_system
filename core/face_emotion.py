@@ -18,6 +18,7 @@ class FaceEmotionDetector:
         self.is_authenticated = False
         self.last_authenticated_identity = None
         self.last_ocr_id = None
+        self.last_emotion = None
         self.last_auth_prompt_time = 0
 
     def _load_attendance(self):
@@ -50,12 +51,13 @@ class FaceEmotionDetector:
             # Emotion detection
             analysis = DeepFace.analyze(img_path=temp_path, actions=["emotion"], enforce_detection=False, silent=True)
             emotion = analysis[0]["dominant_emotion"]
+            self.last_emotion = emotion
 
             # Identity matching
             matches = DeepFace.find(img_path=temp_path, db_path="Dataset/", model_name="Facenet", enforce_detection=False, silent=True)
             if matches and not matches[0].empty:
                 identity_path = matches[0].iloc[0]["identity"]
-                identity_name = os.path.basename(identity_path).split("/")[1].split(".")[0]
+                identity_name = os.path.basename(os.path.dirname(os.path.normpath(identity_path)))
 
                 if self.last_authenticated_identity != identity_name:
                     self.is_authenticated = True
