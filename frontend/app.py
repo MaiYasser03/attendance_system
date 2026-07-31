@@ -16,6 +16,11 @@ import requests
 import streamlit as st
 from PIL import Image
 from streamlit_webrtc import RTCConfiguration, VideoProcessorBase, webrtc_streamer
+import sys
+from pathlib import Path
+
+# Add repo root to sys.path so sibling packages (services, core, utils) are importable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 PROCESS_INTERVAL_SEC = float(os.getenv("PROCESS_INTERVAL_SEC", "2.5"))
