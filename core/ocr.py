@@ -2,8 +2,9 @@ import cv2
 import easyocr
 import time
 import logging
+import re
 from utils.tts import speak
-from utils.constants import NAME_RE, ID_RE
+from utils.constants import NAME_RE, ID_RE, NAME_LABEL_CORRECTIONS
 
 class OCRProcessor:
     def __init__(self):
@@ -31,11 +32,41 @@ class OCRProcessor:
             speak("OCR failed")
             return "OCR failed"
 
+    def normalize_text(self, text: str) -> str:
+        text = text.replace("\n", " ").replace("\r", " ")
+        for pattern, replacement in NAME_LABEL_CORRECTIONS:
+            text = pattern.sub(replacement, text)
+        text = re.sub(r"[^A-Za-z0-9\s:-]", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+    def clean_name(self, name: str) -> str:
+        name = re.sub(r"[^A-Za-z ]+", " ", name).strip()
+        return " ".join(word.capitalize() for word in name.split() if word)
+
     def extract_name_id(self, text):
         """Extract name and ID from OCR text."""
-        name = NAME_RE.search(text)
-        idn = ID_RE.search(text)
-        return (
-            name.group(1).strip() if name else None,
-            idn.group(1) if idn else None
-        )
+        normalized = self.normalize_text(text)
+        idn = ID_RE.search(normalized)
+        name_match = NAME_RE.search(normalized)
+
+        if name_match:
+            return self.clean_name(name_match.group(1)), idn.group(1) if idn else None
+
+        # Fallback: name likely appears before the extracted ID number
+        if idn:
+            before_id = normalized[: idn.start()].strip()
+            fallback_match = re.search(
+                r"(?:name|nama|nane|nom[e]?|full name|student)[\s:\-]*([A-Za-z ]{2,})$",
+                before_id,
+                re.I,
+            )
+            if fallback_match:
+                return self.clean_name(fallback_match.group(1)), idn.group(1)
+
+        # Fallback: first multi-word title-like segment in the OCR text
+        title_candidate = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", normalized)
+        if title_candidate:
+            return self.clean_name(title_candidate.group(1)), idn.group(1) if idn else None
+
+        return None, idn.group(1) if idn else None

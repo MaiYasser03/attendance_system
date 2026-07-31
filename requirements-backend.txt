@@ -1,8 +1,11 @@
-opencv-python-headless
+opencv-python
 mediapipe
 numpy
 pandas
 pyttsx3
+screen_brightness_control
+pycaw
+comtypes
 easyocr
 deepface
 matplotlib
@@ -11,4 +14,6 @@ keras==2.12
 fastapi
 uvicorn[standard]
 python-multipart
+requests
 Pillow
+av

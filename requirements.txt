@@ -1,3 +1,5 @@
+streamlit
+streamlit-webrtc
 opencv-python
 mediapipe
 numpy
@@ -14,8 +16,6 @@ keras==2.12
 fastapi
 uvicorn[standard]
 python-multipart
-streamlit
-streamlit-webrtc
 requests
 Pillow
 av
