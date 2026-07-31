@@ -8,6 +8,7 @@ easyocr
 deepface
 matplotlib
 tensorflow-cpu==2.15
+keras==2.15.0
 fastapi
 uvicorn[standard]
 python-multipart
