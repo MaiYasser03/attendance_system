@@ -2,7 +2,7 @@ streamlit
 streamlit-webrtc
 opencv-python-headless
 mediapipe
-numpy
+numpy==1.26.4
 pandas
 easyocr
 deepface
