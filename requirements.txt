@@ -7,7 +7,7 @@ pandas
 easyocr
 deepface
 matplotlib
-tensorflow-cpu==2.15
+tensorflow==2.15.0
 keras==2.15.0
 fastapi
 uvicorn[standard]
