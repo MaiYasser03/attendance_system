@@ -47,6 +47,9 @@ Emotion analytics chart is saved as emotion_analytics.png
 OCR extracts name and ID from physical ID card.
 Face recognition is matched with the dataset folder.
 Attendance is logged only when both OCR and face match.
+the demo link: https://attendance-system-demo.streamlit.app/ 
+<img width="1917" height="858" alt="image" src="https://github.com/user-attachments/assets/64695ab8-8e1a-4d0f-b6e0-eba4d0d03f2d" />
+
 
 🗣️ Audio Feedback
 Text-to-speech (pyttsx3) is used to:
