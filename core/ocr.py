@@ -1,14 +1,14 @@
 import cv2
-import easyocr
+import pytesseract
 import time
 import logging
 import re
 from utils.tts import speak
 from utils.constants import NAME_RE, ID_RE, NAME_LABEL_CORRECTIONS
 
+
 class OCRProcessor:
     def __init__(self):
-        self.reader = easyocr.Reader(['en'], gpu=False)
         self.last_ocr_text = None
         self.last_ocr_time = 0
 
@@ -17,8 +17,8 @@ class OCRProcessor:
         try:
             gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
             gray = cv2.equalizeHist(gray)
-            text = " ".join(self.reader.readtext(gray, detail=0))
-            if text.strip():
+            text = pytesseract.image_to_string(gray).strip()
+            if text:
                 logging.info(f"OCR: {text}")
                 self.last_ocr_text = text
                 self.last_ocr_time = time.time()
@@ -45,28 +45,20 @@ class OCRProcessor:
         return " ".join(word.capitalize() for word in name.split() if word)
 
     def extract_name_id(self, text):
-        """Extract name and ID from OCR text."""
         normalized = self.normalize_text(text)
         idn = ID_RE.search(normalized)
         name_match = NAME_RE.search(normalized)
-
         if name_match:
             return self.clean_name(name_match.group(1)), idn.group(1) if idn else None
-
-        # Fallback: name likely appears before the extracted ID number
         if idn:
             before_id = normalized[: idn.start()].strip()
             fallback_match = re.search(
                 r"(?:name|nama|nane|nom[e]?|full name|student)[\s:\-]*([A-Za-z ]{2,})$",
-                before_id,
-                re.I,
+                before_id, re.I,
             )
             if fallback_match:
                 return self.clean_name(fallback_match.group(1)), idn.group(1)
-
-        # Fallback: first multi-word title-like segment in the OCR text
         title_candidate = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", normalized)
         if title_candidate:
             return self.clean_name(title_candidate.group(1)), idn.group(1) if idn else None
-
         return None, idn.group(1) if idn else None
