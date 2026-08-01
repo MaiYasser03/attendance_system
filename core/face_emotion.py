@@ -2,16 +2,26 @@ import os
 import cv2
 import time
 import logging
+import numpy as np
 import pandas as pd
+import onnxruntime as ort
 from datetime import datetime
-from deepface import DeepFace
 from utils.constants import CSV_PATH
 from utils.tts import speak
 from core.ocr import OCRProcessor
 
+EMOTION_LABELS = ["neutral", "happiness", "surprise", "sadness",
+                  "anger", "disgust", "fear", "contempt"]
+CONFIDENCE_THRESHOLD = 80  # lower LBPH distance = better match; tune as needed
+DATASET_DIR = "Dataset"
+MODEL_PATH = "models/emotion-ferplus.onnx"
+
+
 class FaceEmotionDetector:
     def __init__(self):
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        self.face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
         self.attendance_file = CSV_PATH
         self.df = self._load_attendance()
         self.ocr_engine = OCRProcessor()
@@ -21,11 +31,49 @@ class FaceEmotionDetector:
         self.last_emotion = None
         self.last_auth_prompt_time = 0
 
+        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+        self.label_map = {}
+        self._train_recognizer()
+
+        self.emotion_session = None
+        if os.path.exists(MODEL_PATH):
+            self.emotion_session = ort.InferenceSession(MODEL_PATH)
+        else:
+            logging.warning(f"Emotion model not found at {MODEL_PATH}; emotion detection disabled.")
+
+    def _train_recognizer(self):
+        faces, labels = [], []
+        label_id = 0
+        if not os.path.isdir(DATASET_DIR):
+            logging.warning(f"Dataset dir '{DATASET_DIR}' not found; face ID disabled until added.")
+            return
+        for person_name in sorted(os.listdir(DATASET_DIR)):
+            person_dir = os.path.join(DATASET_DIR, person_name)
+            if not os.path.isdir(person_dir):
+                continue
+            self.label_map[label_id] = person_name
+            for fname in os.listdir(person_dir):
+                path = os.path.join(person_dir, fname)
+                img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+                detected = self.face_cascade.detectMultiScale(img, 1.1, 5)
+                if len(detected) == 0:
+                    face_img = cv2.resize(img, (200, 200))
+                else:
+                    x, y, w, h = detected[0]
+                    face_img = cv2.resize(img[y:y+h, x:x+w], (200, 200))
+                faces.append(face_img)
+                labels.append(label_id)
+            label_id += 1
+        if faces:
+            self.recognizer.train(faces, np.array(labels))
+            logging.info(f"Trained face recognizer on {len(faces)} images, {label_id} people.")
+
     def _load_attendance(self):
         if os.path.exists(self.attendance_file):
             return pd.read_csv(self.attendance_file, dtype=str)
-        else:
-            return pd.DataFrame(columns=["date", "name", "id", "emotion", "time"])
+        return pd.DataFrame(columns=["date", "name", "id", "emotion", "time"])
 
     def save_attendance(self, name, id_num, emotion):
         if not self.is_authenticated:
@@ -43,27 +91,40 @@ class FaceEmotionDetector:
         speak(f"{name} marked present")
         logging.info(f"{name} marked present with emotion {emotion}")
 
+    def _predict_emotion(self, face_gray):
+        if self.emotion_session is None:
+            return "unknown"
+        try:
+            resized = cv2.resize(face_gray, (64, 64)).astype(np.float32)
+            input_tensor = resized.reshape(1, 1, 64, 64)
+            input_name = self.emotion_session.get_inputs()[0].name
+            output = self.emotion_session.run(None, {input_name: input_tensor})[0][0]
+            exp = np.exp(output - np.max(output))
+            probs = exp / exp.sum()
+            return EMOTION_LABELS[int(np.argmax(probs))]
+        except Exception as e:
+            logging.error(f"Emotion prediction failed: {e}")
+            return "unknown"
+
     def analyze_face(self, face_img, ocr_text=""):
         try:
-            temp_path = "temp_face.jpg"
-            cv2.imwrite(temp_path, face_img)
+            gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+            gray_resized = cv2.resize(gray, (200, 200))
 
-            # Emotion detection
-            analysis = DeepFace.analyze(img_path=temp_path, actions=["emotion"], enforce_detection=False, silent=True)
-            emotion = analysis[0]["dominant_emotion"]
+            emotion = self._predict_emotion(gray)
             self.last_emotion = emotion
 
-            # Identity matching
-            matches = DeepFace.find(img_path=temp_path, db_path="Dataset/", model_name="Facenet", enforce_detection=False, silent=True)
-            if matches and not matches[0].empty:
-                identity_path = matches[0].iloc[0]["identity"]
-                identity_name = os.path.basename(os.path.dirname(os.path.normpath(identity_path)))
+            if not self.label_map:
+                self.is_authenticated = False
+                return
 
+            label_id, confidence = self.recognizer.predict(gray_resized)
+            if confidence < CONFIDENCE_THRESHOLD:
+                identity_name = self.label_map.get(label_id)
                 if self.last_authenticated_identity != identity_name:
                     self.is_authenticated = True
                     self.last_authenticated_identity = identity_name
 
-                    # Extract name/ID from OCR text
                     name, id_ = self.ocr_engine.extract_name_id(ocr_text)
                     if not name:
                         name = identity_name
